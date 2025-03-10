@@ -1,0 +1,81 @@
+Sub CreatePivotTable()
+    Dim wsData As Worksheet, wsPivot As Worksheet
+    Dim pivotCache As pivotCache
+    Dim pivotTable As pivotTable
+    Dim dataRange As Range
+    Dim pivotSheetName As String
+    Dim pivotTableName As String
+    Dim ptField As PivotField
+
+    ' Define sheet names
+    pivotSheetName = "pivotsheet"
+    pivotTableName = "PivotTable1"
+    
+    ' Set data sheet
+    On Error Resume Next
+    Set wsData = ThisWorkbook.Sheets("data")
+    On Error GoTo 0
+    
+    If wsData Is Nothing Then
+        MsgBox "Sheet 'data' not found!", vbExclamation
+        Exit Sub
+    End If
+    
+    ' Get the data range dynamically
+    Set dataRange = wsData.Range("A1").CurrentRegion
+    
+    ' Check if headers exist
+    If Application.WorksheetFunction.CountA(dataRange.Rows(1)) = 0 Then
+        MsgBox "Data sheet does not have valid headers!", vbExclamation
+        Exit Sub
+    End If
+    
+    ' Delete existing PivotSheet if it exists
+    On Error Resume Next
+    Application.DisplayAlerts = False
+    Sheets(pivotSheetName).Delete
+    Application.DisplayAlerts = True
+    On Error GoTo 0
+    
+    ' Add new PivotSheet
+    Set wsPivot = ThisWorkbook.Sheets.Add
+    wsPivot.Name = pivotSheetName
+    
+    ' Create Pivot Cache
+    Set pivotCache = ThisWorkbook.PivotCaches.Create(SourceType:=xlDatabase, SourceData:=dataRange.Address(ReferenceStyle:=xlR1C1, External:=True))
+    
+    ' Create Pivot Table
+    Set pivotTable = pivotCache.CreatePivotTable(TableDestination:=wsPivot.Range("A3"), TableName:=pivotTableName)
+    
+    ' Add Row Field (year_id)
+    On Error Resume Next
+    Set ptField = pivotTable.PivotFields("year_id")
+    If Not ptField Is Nothing Then
+        ptField.Orientation = xlRowField
+        ptField.Position = 1
+    Else
+        MsgBox "'year_id' field not found in data!", vbExclamation
+        Exit Sub
+    End If
+    On Error GoTo 0
+    
+    ' Add Data Field (Sum of total_rebate)
+    On Error Resume Next
+    Set ptField = pivotTable.PivotFields("total_rebate")
+    If Not ptField Is Nothing Then
+        ptField.Orientation = xlDataField
+        ptField.Function = xlSum
+        ptField.NumberFormat = "#,##0" ' Format as number with thousand separator
+    Else
+        MsgBox "'total_rebate' field not found in data!", vbExclamation
+        Exit Sub
+    End If
+    On Error GoTo 0
+    
+    ' Autofit columns for better visibility
+    wsPivot.Columns.AutoFit
+    
+    MsgBox "Pivot Table created successfully on 'pivotsheet'.", vbInformation
+
+End Sub
+
