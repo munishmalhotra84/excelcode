@@ -1,11 +1,14 @@
 Sub CreatePivotTable()
-    Dim wsData As Worksheet, wsPivot As Worksheet
+    Dim wsData As Worksheet, wsPivot As Worksheet, wsData1 As Worksheet
     Dim pivotCache As pivotCache
     Dim pivotTable As pivotTable
-    Dim dataRange As Range
+    Dim dataRange As Range, criteriaRange As Range, destinationRange As Range
     Dim pivotSheetName As String
     Dim pivotTableName As String
     Dim ptField As PivotField
+    Dim dataRange1 As Range
+    Dim newRange As Range
+    
 
     ' Define sheet names
     pivotSheetName = "pivotsheet"
@@ -14,6 +17,7 @@ Sub CreatePivotTable()
     ' Set data sheet
     On Error Resume Next
     Set wsData = ThisWorkbook.Sheets("data")
+    Set wsData1 = ThisWorkbook.Sheets("data1")
     On Error GoTo 0
     
     If wsData Is Nothing Then
@@ -21,8 +25,25 @@ Sub CreatePivotTable()
         Exit Sub
     End If
     
+    If wsData1 Is Nothing Then
+        ' Sheet doesn't exist, so create it
+        Set wsData1 = ThisWorkbook.Sheets.Add
+        wsData1.Name = "data1"
+        MsgBox "Sheet 'data1' has been created.", vbInformation
+    End If
+    
     ' Get the data range dynamically
+    
+    'Set dataRange = wsData.Range("A1").CurrentRegion.AutoFilter(Field:=1, Criteria1:="2024")
     Set dataRange = wsData.Range("A1").CurrentRegion
+    
+    wsData.Range("C1").Value = "GNRC_CD"  ' Column header
+    wsData.Range("C2").Value = "Brand"    ' Filter condition
+    Set criteriaRange = wsData.Range("C1:C2")
+    Set destinationRange = wsData1.Range("A1")
+    
+    dataRange.AdvancedFilter Action:=xlFilterCopy, criteriaRange:=criteriaRange, _
+                             CopyToRange:=destinationRange, Unique:=False
     
     ' Check if headers exist
     If Application.WorksheetFunction.CountA(dataRange.Rows(1)) = 0 Then
@@ -41,8 +62,15 @@ Sub CreatePivotTable()
     Set wsPivot = ThisWorkbook.Sheets.Add
     wsPivot.Name = pivotSheetName
     
+   
+    MsgBox destinationRange.Count
+    
+    Set newRange = wsData1.Range("A1").CurrentRegion
+    
+    MsgBox newRange.Count
+    
     ' Create Pivot Cache
-    Set pivotCache = ThisWorkbook.PivotCaches.Create(SourceType:=xlDatabase, SourceData:=dataRange.Address(ReferenceStyle:=xlR1C1, External:=True))
+    Set pivotCache = ThisWorkbook.PivotCaches.Create(SourceType:=xlDatabase, SourceData:=newRange.Address(ReferenceStyle:=xlR1C1, External:=True))
     
     ' Create Pivot Table
     Set pivotTable = pivotCache.CreatePivotTable(TableDestination:=wsPivot.Range("A3"), TableName:=pivotTableName)
@@ -76,6 +104,12 @@ Sub CreatePivotTable()
     wsPivot.Columns.AutoFit
     
     MsgBox "Pivot Table created successfully on 'pivotsheet'.", vbInformation
+    
+        ' Delete sheet named "data1" after program is done
+    On Error Resume Next
+    Application.DisplayAlerts = False ' Disable delete confirmation prompt
+    ThisWorkbook.Sheets("data1").Delete
+    Application.DisplayAlerts = True
 
 End Sub
 
